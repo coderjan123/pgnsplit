@@ -118,7 +118,7 @@ tools/parity.mjs      checks that both implementations cut identical ranges
 ## Development
 
 ```sh
-npm test                                        # 71 checks + js/python parity on the samples
+npm test                                        # 97 checks + js/python parity on the samples
 npm run test:ui                                 # the real page in jsdom (needs npm install)
 node tools/parity.mjs "~/CHESS/some course"     # any number of files or folders
 find ~/pgns -name '*.pgn' > list.txt

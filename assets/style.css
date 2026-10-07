@@ -110,6 +110,8 @@ button.link {
 }
 
 .progress { display: flex; align-items: center; gap: 0.7rem; margin: 1rem 0; font-size: 0.9rem; color: var(--dim); }
+/* an explicit display would otherwise beat the user agent's [hidden] rule */
+.progress[hidden] { display: none; }
 .bar { flex: 1; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
 .fill { height: 100%; width: 0; background: var(--accent); transition: width 0.1s linear; }
 

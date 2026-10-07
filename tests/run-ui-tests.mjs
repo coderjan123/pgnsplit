@@ -67,6 +67,7 @@ check("the app exposes its scripting hook", typeof window.pgnsplit === "object")
 check("the splitter is loaded", typeof window.PgnSplit === "object");
 check("the zip writer is loaded", typeof window.PgnZip === "object");
 check("the download button starts disabled", doc.getElementById("download-all").disabled === true);
+check("the progress bar starts hidden", doc.getElementById("progress").hidden === true);
 check("nothing is reported before a file is chosen", doc.querySelectorAll(".file").length === 0);
 
 /* a small PGN with three games, fed through the real file input */

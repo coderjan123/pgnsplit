@@ -7,8 +7,8 @@ node_modules/
 package-lock.json
 
 # tooling leftovers
-tools/.parity_helper.py
-tools/.parity_list.json
+tools/.parity_helper*.py
+tools/.parity_list*.json
 tests/.tmp/
 
 # editors and systems

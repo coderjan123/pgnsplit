@@ -44,8 +44,10 @@ async function pythonRanges(files) {
   const { execFile } = await import("node:child_process");
   const { promisify } = await import("node:util");
   const run = promisify(execFile);
-  const script = join(here, ".parity_helper.py");
-  const list = join(here, ".parity_list.json");
+  /* unique names, so several runs can go side by side */
+  const tag = `${process.pid}_${Date.now().toString(36)}`;
+  const script = join(here, `.parity_helper_${tag}.py`);
+  const list = join(here, `.parity_list_${tag}.json`);
   writeFileSync(script, PY_HELPER);
   writeFileSync(list, JSON.stringify(files));
   try {

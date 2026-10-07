@@ -30,9 +30,23 @@ from pathlib import Path
 TOOL = "pgnsplit"
 DEFAULT_GAMES_PER_FILE = 64
 
-# A tag pair, e.g.  [White "1) Introduction"]   (escaped quotes tolerated).
-# A leading UTF-8 BOM on the very first line of a file is tolerated as well.
-TAG_RE = re.compile(rb'^(?:\xef\xbb\xbf)?[ \t]*\[[ \t]*[A-Za-z0-9_]+[ \t]+"(?:[^"\r\n]|\\.)*"[ \t]*\][ \t]*\r?\n?$')
+# A tag pair, e.g.  [White "1) Introduction"]
+#
+# Two shapes are accepted, because exports contain both:
+#   TAG_ESCAPED  the value may contain \" and \\      [White "a \"b"]
+#   TAG_PLAIN    a backslash is an ordinary character [Event "It \"]  <- real
+# A tag pair without a space after the name, [PlyCount"29"], counts as a tag as
+# well: treating that as movetext would cut the game in two and leave a chapter
+# without any moves.  An escaped quote and a UTF-8 BOM on the first line are
+# tolerated too.
+_TAG = rb'^(?:\xef\xbb\xbf)?[ \t]*\[[ \t]*[A-Za-z0-9_]+[ \t]*"%s"[ \t]*\][ \t]*\r?\n?$'
+TAG_ESCAPED = re.compile(_TAG % rb'(?:[^\\"\r\n]|\\.)*')
+TAG_PLAIN = re.compile(_TAG % rb'(?:[^"\r\n]|\\.)*')
+
+
+def is_tag(line: bytes) -> bool:
+    """True when the line is a tag pair, in either of the two accepted shapes."""
+    return bool(TAG_ESCAPED.match(line) or TAG_PLAIN.match(line))
 # A whitespace-only line, with CR, LF or CRLF as the terminator
 BLANK_RE = re.compile(rb"[ \t]*(?:\r\n|\r|\n)")
 # The movetext terminator of a game
@@ -118,7 +132,7 @@ def find_games(data: bytes) -> tuple[list[tuple[int, int]], list[str]]:
         stripped = line.strip()
         blank = not stripped
 
-        if depth == 0 and TAG_RE.match(line):
+        if depth == 0 and is_tag(line):
             # a tag block that is followed by two blank lines and then more
             # tags is a game of its own, even without a single move
             if in_movetext or (in_tags and blank_run >= 2):
@@ -182,7 +196,7 @@ def find_games(data: bytes) -> tuple[list[tuple[int, int]], list[str]]:
     # brackets, e.g. a main line that continues after a variation was closed.
     merged: list[tuple[int, int]] = []
     for s, e in games:
-        has_tags = any(TAG_RE.match(line) for line in data[s:e].splitlines())
+        has_tags = any(is_tag(line) for line in data[s:e].splitlines())
         if merged and not has_tags:
             anomalies.append(
                 f"offset {s}: block without headers merged into the previous game"
@@ -203,13 +217,13 @@ def inspect_games(data: bytes, games: list[tuple[int, int]]) -> list[str]:
         if not chunk.strip():
             problems.append(f"game {i}: empty")
             continue
-        if not any(re.match(rb'^[ \t]*\[[ \t]*Result[ \t]+"', line)
+        if not any(re.match(rb'^[ \t]*\[[ \t]*Result[ \t]*"', line)
                    for line in chunk.splitlines()):
             problems.append(f"game {i}: no [Result] tag")
         movetext = False
         depth = 0
         for line in chunk.splitlines(keepends=True):
-            if depth == 0 and TAG_RE.match(line):
+            if depth == 0 and is_tag(line):
                 continue
             if depth == 0 and line.strip():
                 movetext = True
@@ -371,7 +385,7 @@ def run(path_arg: str, args) -> int:
         return 1
     games, chunks, targets, anomalies = planned
 
-    if not any(TAG_RE.match(line) for line in data.splitlines()):
+    if not any(is_tag(line) for line in data.splitlines()):
         print(f"{TOOL}: {source}: no [Tag \"...\"] headers found, cannot split", file=sys.stderr)
         return 1
 

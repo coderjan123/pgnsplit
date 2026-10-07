@@ -171,6 +171,13 @@ console.log("lexer");
   check("matchTagLine accepts CRLF", tagOf('[Event "x"]\r\n'));
   check("matchTagLine accepts a BOM", tagOf(BOM + '[Event "x"]\n'));
   check("matchTagLine accepts an escaped quote", tagOf('[White "a \\"b"]\n'));
+  check("matchTagLine accepts a backslash before the closing quote",
+        tagOf('[Event "It \\"]\n'));
+  check("matchTagLine accepts a backslash before the closing quote, with CRLF",
+        tagOf('[Event "It \\"]\r\n'));
+  check("matchTagLine accepts a tag without a space after the name",
+        tagOf('[PlyCount"29"]\n'));
+  check("matchTagLine still rejects a value that runs on", !tagOf('[Event "It "x"]\n'));
   check("matchTagLine accepts an empty value", tagOf('[Event ""]\n'));
   check("matchTagLine rejects movetext", !tagOf("1. e4 e5\n"));
   check("matchTagLine rejects a tag with trailing junk", !tagOf('[Event "x"]  junk\n'));

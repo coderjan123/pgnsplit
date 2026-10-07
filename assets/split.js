@@ -59,11 +59,32 @@
   }
 
   /*
-   * Is data[a, b) a tag pair line?  Mirrors the regular expression in
-   * pgnsplit.py:
-   *   ^(?:\xef\xbb\xbf)?[ \t]*\[[ \t]*[A-Za-z0-9_]+[ \t]+"(?:[^"\r\n]|\\.)*"[ \t]*\][ \t]*\r?\n?$
-   * Returns the offset of the closing quote of the tag name, or -1, and puts
-   * the tag name into `tag` when given.
+   * Find the end of a tag value, i.e. the closing quote.
+   * escaped:  the value may contain \" and \\          [White "a \"b"]
+   * plain:    a backslash is an ordinary character    [Event "It \"]  <- real
+   * Both shapes exist in the wild, so both are accepted; the first one that
+   * leads to a well formed tag pair wins.
+   * Returns the offset of the closing quote, or -1.
+   */
+  function endOfValue(data, i, b, escaped) {
+    while (i < b) {
+      var c = data[i];
+      if (escaped && c === BSLASH) {
+        if (i + 1 >= b) return -1;
+        i += 2;
+        continue;
+      }
+      if (c === QUOTE) return i;
+      if (c === CR || c === LF) return -1;
+      i++;
+    }
+    return -1;
+  }
+
+  /*
+   * Is data[a, b) a tag pair line?  Mirrors is_tag() in pgnsplit.py.
+   * Returns the offset just past the tag name, or -1, and puts the tag name
+   * into `tag` when given.
    */
   function matchTagLine(data, a, b, tag) {
     var i = a;
@@ -76,28 +97,28 @@
     var nameStart = i;
     while (i < b && isNameChar(data[i])) i++;
     var nameEnd = i;
-    if (i >= b) return -1;
     while (i < b && (data[i] === SPACE || data[i] === TAB)) i++;
     if (i >= b || data[i] !== QUOTE) return -1;
     i++;
-    while (i < b) {
-      var c = data[i];
-      if (c === BSLASH) { i += 2; continue; }
-      if (c === QUOTE) break;
-      if (c === CR || c === LF) return -1;
-      i++;
-    }
-    if (i >= b || data[i] !== QUOTE) return -1;
-    i++;
+
+    var quote = endOfValue(data, i, b, true);
+    if (quote < 0 || !tagEnds(data, quote + 1, b)) quote = endOfValue(data, i, b, false);
+    if (quote < 0) return -1;
+    if (!tagEnds(data, quote + 1, b)) return -1;
+
+    if (tag) tag.name = latin1(data, nameStart, nameEnd);
+    return nameEnd;
+  }
+
+  /* after the closing quote: [ \t]* ] [ \t]* and the line terminator */
+  function tagEnds(data, i, b) {
     while (i < b && (data[i] === SPACE || data[i] === TAB)) i++;
-    if (i >= b || data[i] !== RBRACKET) return -1;
+    if (i >= b || data[i] !== RBRACKET) return false;
     i++;
     while (i < b && (data[i] === SPACE || data[i] === TAB)) i++;
     if (i < b && data[i] === CR) i++;
     if (i < b && data[i] === LF) i++;
-    if (i !== b) return -1;
-    if (tag) tag.name = latin1(data, nameStart, nameEnd);
-    return nameEnd;
+    return i === b;
   }
 
   /* small ASCII slice, only used for tag names */
@@ -254,7 +275,10 @@
         notes.push({ kind: "resync", line: lines, text: "unclosed comment or variation before a new game, resynchronised" });
         close(lineStart);
         depth = 0;
-        current.hasTagLine = true;   /* this [Event line opens the new game */
+        /* the [Event line opens the new game, but only count it as a tag pair
+           when it really is one: a line carrying several tag pairs at once is
+           not one, and python merges such a block into the previous game */
+        if (matchTagLine(data, lineStart, lineEnd, null) >= 0) current.hasTagLine = true;
         if ((lines & 0xffff) === 0) yield pos;
         continue;
       }
