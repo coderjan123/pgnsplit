@@ -178,17 +178,16 @@
   /* first offset after the run of blank lines starting at pos */
   function skipBlank(data, pos) {
     var n = data.length;
-    while (pos < n) {
+    for (;;) {
       var i = pos;
       while (i < n && data[i] !== LF && data[i] !== CR) {
         if (!isSpace(data[i])) return pos;
         i++;
       }
-      if (i >= n) return n;                     /* whitespace only, no terminator */
-      if (data[i] === CR && data[i + 1] === LF) return i + 2;
-      return i + 1;
+      if (i >= n) return n;                       /* whitespace only, no terminator */
+      if (data[i] === CR && data[i + 1] === LF) pos = i + 2;
+      else pos = i + 1;
     }
-    return pos;
   }
 
   function newGame(start) {
@@ -255,6 +254,7 @@
         notes.push({ kind: "resync", line: lines, text: "unclosed comment or variation before a new game, resynchronised" });
         close(lineStart);
         depth = 0;
+        current.hasTagLine = true;   /* this [Event line opens the new game */
         if ((lines & 0xffff) === 0) yield pos;
         continue;
       }

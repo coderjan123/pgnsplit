@@ -34,6 +34,8 @@
 
   var MAX_TABLE_ROWS = 400;
   var MAX_LISTED = 12;
+  /* above this the sha256 round-trip would need a second copy of the file */
+  var MAX_SHA_BYTES = 256 * 1024 * 1024;
 
   /* ----------------------------------------------------------------- helpers */
 
@@ -198,8 +200,13 @@
     box.appendChild(text("h3", null,
       games + (games === 1 ? " game" : " games") + " → " + files + (files === 1 ? " file" : " files") +
       " of " + first + (last === first ? "" : " (last one " + last + ")")));
-    if (job.sha) {
-      box.appendChild(text("div", null, "sha256 of the chunks matches the input: " + job.sha.slice(0, 16) + "…"));
+    if (job.sha === "length-only") {
+      box.appendChild(text("div", null,
+        "chunk lengths add up to the file (" + S.humanSize(job.size) +
+        "); too large to hash a second time in memory"));
+    } else if (job.sha) {
+      box.appendChild(text("div", null,
+        "sha256 of the chunks matches the input: " + job.sha.slice(0, 16) + "…"));
     }
     if (job.renamed) {
       box.appendChild(text("div", null, "output names were made unique across all loaded files"));
@@ -324,24 +331,34 @@
     updateButtons();
   }
 
-  /* rebuild the chunks in memory and compare the sha256 of both sides */
+  /*
+   * Rebuild the chunks in memory and compare the sha256 of both sides.  For a
+   * very large file the second copy is skipped and only the lengths are
+   * compared, so the tab does not run out of memory.
+   */
   async function verify(job) {
     try {
       var hash = Z.sha256Hex;
       if (!hash) return null;
-      var inputHash = await hash(job.bytes);
-      var parts = [];
       var total = 0;
-      for (var i = 0; i < job.chunks.length; i++) {
-        var slice = chunkBytes(job, job.chunks[i]);
-        parts.push(slice);
-        total += slice.length;
+      for (var i = 0; i < job.chunks.length; i++) total += chunkSize(job, job.chunks[i]);
+      if (total !== job.bytes.length) {
+        job.problems.push({ text: "internal check failed: the chunks do not add up to the input" });
+        return null;
       }
+      if (total > MAX_SHA_BYTES) {
+        return "length-only";
+      }
+      var inputHash = await hash(job.bytes);
       var joined = new Uint8Array(total);
       var at = 0;
-      for (var j = 0; j < parts.length; j++) { joined.set(parts[j], at); at += parts[j].length; }
+      for (var j = 0; j < job.chunks.length; j++) {
+        var slice = chunkBytes(job, job.chunks[j]);
+        joined.set(slice, at);
+        at += slice.length;
+      }
       var chunksHash = await hash(joined);
-      if (chunksHash !== inputHash || total !== job.bytes.length) {
+      if (chunksHash !== inputHash) {
         job.problems.push({ text: "internal check failed: the chunks do not add up to the input" });
         return null;
       }
@@ -393,13 +410,20 @@
         if (skipped) msg += ", " + skipped + " already existed and were left alone";
         job.saved = msg;
         render();
+      } else if (job.chunks.length === 1) {
+        /* a single chunk is handed over as the plain pgn, not wrapped in a zip */
+        var only = chunkBytes(job, job.chunks[0]);
+        downloadBlob(new Blob([only], { type: "application/x-chess-pgn" }), job.names[0]);
+        job.saved = "saved " + job.names[0] + " (" + S.humanSize(only.length) + ")";
+        render();
       } else {
         var entries = job.chunks.map(function (chunk, i) {
           return { name: job.names[i], data: chunkBytes(job, chunk) };
         });
         var zip = await Z.create(entries);
-        downloadBlob(zip.blob, job.names.length === 1 ? job.names[0] : S.stemOf(job.name) + "_chunks.zip");
-        job.saved = "saved a zip of " + S.humanSize(zip.zipSize) + " (uncompressed " + S.humanSize(zip.rawSize) + ")";
+        downloadBlob(zip.blob, S.stemOf(job.name) + "_chunks.zip");
+        job.saved = "saved a zip of " + entries.length + " files, " + S.humanSize(zip.zipSize) +
+                    " (uncompressed " + S.humanSize(zip.rawSize) + ")";
         render();
       }
     } catch (err) {

@@ -233,7 +233,9 @@ def count_games_with_chess(data: bytes) -> tuple[int | None, str | None]:
 
     logging.getLogger("chess.pgn").setLevel(logging.CRITICAL)
     count = 0
-    handle = io.StringIO(data.decode("utf-8", errors="replace"))
+    # newline=None translates CR and CRLF into LF, so a file with classic mac
+    # line endings is counted the way python-chess counts a real file
+    handle = io.StringIO(data.decode("utf-8", errors="replace"), newline=None)
     err = io.StringIO()
     try:
         with contextlib_redirect_stderr(err):

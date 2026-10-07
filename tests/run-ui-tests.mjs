@@ -161,6 +161,37 @@ if (typeof window.CompressionStream === "function") {
         `${zip.zipSize} vs ${zip.rawSize}`);
 }
 
+/* ---- what a download actually produces ---------------------------------- */
+const downloads = [];
+let lastBlob = null;
+window.URL.createObjectURL = (blob) => { lastBlob = blob; return "blob:fake"; };
+window.URL.revokeObjectURL = () => {};
+window.HTMLAnchorElement.prototype.click = function () { downloads.push(this.download); };
+window.alert = () => {};
+
+doc.getElementById("download-all").dispatchEvent(new window.Event("click"));
+await new Promise((resolve) => setTimeout(resolve, 600));
+check("downloading all produced one file", downloads.length === 1, downloads.join(","));
+/* three games at two per file, so two chunks, so a zip */
+check("two chunks are zipped into one download", downloads[0] === "pgnsplit-chunks.zip", downloads[0]);
+check("the zip blob was handed over", !!lastBlob && lastBlob.size > 0);
+
+/* one chunk only: the plain pgn, not a zip */
+downloads.length = 0;
+doc.getElementById("games").value = "64";
+doc.getElementById("games").dispatchEvent(new window.Event("input"));
+await new Promise((resolve) => setTimeout(resolve, 400));
+const state5 = window.pgnsplit.state();
+check("three games at 64 per file make one file", state5[0].files === 1, String(state5[0].files));
+doc.querySelector(".file header button").dispatchEvent(new window.Event("click"));
+await new Promise((resolve) => setTimeout(resolve, 600));
+check("a single chunk is downloaded as the pgn itself",
+      downloads[0] === "lecture_001.pgn", downloads.join(","));
+const plain = new Uint8Array(await lastBlob.arrayBuffer());
+check("the single download is a pgn, not a zip",
+      Buffer.from(plain.subarray(0, 8)).toString() === '[Event "',
+      Buffer.from(plain.subarray(0, 8)).toString());
+
 console.log(`\n${passed} passed, ${failures.length} failed`);
 if (failures.length) {
   console.log(failures.map((f) => "  - " + f).join("\n"));
