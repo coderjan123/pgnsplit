@@ -278,12 +278,11 @@
   /* -------------------------------------------------------------- pipeline */
 
   function looksUtf16(bytes) {
-    if (bytes.length >= 2 && ((bytes[0] === 0xff && bytes[1] === 0xfe) || (bytes[0] === 0xfe && bytes[1] === 0xff))) {
-      return true;
-    }
-    var limit = Math.min(bytes.length, 2000);
-    for (var i = 0; i < limit; i++) if (bytes[i] === 0) return true;
-    return false;
+    /* a UTF-16 file cannot be split byte by byte, anything else can */
+    var why = S.encodingProblem(bytes);
+    if (!why) return null;
+    return why + ". Convert it first, for example:\n" +
+      "iconv -f UTF-16 -t UTF-8 file.pgn > utf8.pgn";
   }
 
   async function addFiles(fileList) {
@@ -301,7 +300,8 @@
         var buffer = await file.arrayBuffer();
         var bytes = new Uint8Array(buffer);
         if (bytes.length === 0) throw new Error("the file is empty");
-        if (looksUtf16(bytes)) throw new Error("looks like a UTF-16 file, which PGN readers do not support");
+        var encoding = looksUtf16(bytes);
+        if (encoding) throw new Error(encoding);
         job.bytes = bytes;
         job.size = bytes.length;
         setProgress(0, "splitting " + file.name);

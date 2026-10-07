@@ -157,6 +157,42 @@ for (const [name, want] of Object.entries(EXPECTED)) {
         mainline.includes("-gm 0-1 chess24.com") && mainline.includes("1... Nf6 *"));
 }
 
+/* ---------------------------------------------------------------- encoding */
+
+console.log("encoding");
+{
+  const utf16le = new Uint8Array([0xff, 0xfe, ...Buffer.from('[Event "x"]', "utf16le")]);
+  const utf16be = new Uint8Array([0xfe, 0xff, ...Buffer.from('[Event "x"]', "utf16le").swap16()]);
+  const clean = new TextEncoder().encode('[Event "x"]\n[Site "?"]\n1. e4 e5 *\n');
+  const withStrayNuls = new Uint8Array(clean.length);
+  withStrayNuls.set(clean, 0);
+  [5, 6, 17].forEach((i) => { withStrayNuls[i] = 0; });  /* a few empty bytes */
+
+  check("encoding: a plain pgn is fine", S.encodingProblem(clean) === null);
+  check("encoding: stray NUL bytes are fine", S.encodingProblem(withStrayNuls) === null,
+        String(S.encodingProblem(withStrayNuls)));
+  check("encoding: a UTF-16LE byte order mark is caught",
+        /byte order mark/.test(String(S.encodingProblem(utf16le))));
+  check("encoding: a UTF-16BE byte order mark is caught",
+        /byte order mark/.test(String(S.encodingProblem(utf16be))));
+  /* a real utf-16 pgn without a byte order mark: long enough to judge */
+  const longText = Buffer.from(('[Event "x"]\n[Site "?"]\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 1-0\n').repeat(6), "utf16le");
+  check("encoding: UTF-16 text without a mark is caught",
+        /UTF-16/.test(String(S.encodingProblem(new Uint8Array(longText)))),
+        String(S.encodingProblem(new Uint8Array(longText))));
+  check("encoding: a very short file is not judged",
+        S.encodingProblem(new Uint8Array([0, 1, 2, 0])) === null);
+  /* the four real files from the collection that contain NUL bytes */
+  for (const path of ["1... g6 Variation.pgn", "Other lines- 2...c6 Variation.pgn",
+                      "Classical Defense- 3.Nd2-c5.pgn", "Classical Defense- 3.Nd2-h6.pgn"]) {
+    const full = join(here, "..", "..", "MEGA-Downloads", "289f37b319a5ac58", "0 PGN",
+                       "280 Chessable Video PGN Collection", "Trompowsky Attack Opening LAB Ratkovic Milovan PGNs", path);
+    if (!existsSync(full)) continue;                 /* not checked out everywhere */
+    const reason = S.encodingProblem(new Uint8Array(readFileSync(full)));
+    check(`encoding: ${path} is accepted`, reason === null, String(reason));
+  }
+}
+
 /* --------------------------------------------------------------- unit tests */
 
 console.log("lexer");

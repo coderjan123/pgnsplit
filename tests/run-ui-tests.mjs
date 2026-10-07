@@ -55,6 +55,23 @@ for (const [name, value] of [["crypto", webcrypto], ["TextEncoder", TextEncoder]
   if (missing) Object.defineProperty(window, name, { value, configurable: true, writable: true });
 }
 
+/*
+ * jsdom's Blob and File have no arrayBuffer() in this version.  The patch has
+ * to go on File.prototype itself: window.Blob was just replaced by node's Blob
+ * above, so File no longer inherits from it.
+ */
+for (const proto of [window.File.prototype, window.Blob.prototype]) {
+  if (!proto || proto.arrayBuffer) continue;
+  proto.arrayBuffer = function () {
+    const reader = new window.FileReader();
+    return new Promise((resolve, reject) => {
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(this);
+    });
+  };
+}
+
 /* the page uses classic scripts, so load them the way a browser would */
 for (const file of ["assets/split.js", "assets/zip.js", "assets/app.js"]) {
   window.eval(readFileSync(join(root, file), "utf8"));
@@ -160,6 +177,34 @@ check("the zip has content", zipBytes.length > 0, `${zipBytes.length} bytes`);
 if (typeof window.CompressionStream === "function") {
   check("the zip is smaller than the input", zip.zipSize < zip.rawSize,
         `${zip.zipSize} vs ${zip.rawSize}`);
+}
+
+/* ---- a file with a few stray NUL bytes must not be refused -------------- */
+{
+  const enc = new TextEncoder();
+  const text = enc.encode(sample);
+  const withNuls = new Uint8Array(text.length);
+  withNuls.set(text, 0);
+  /* empty bytes inside a comment and at the very end, like the exports that
+     have them; a tag line must stay intact or the file is a different pgn */
+  const where = Buffer.from(text).indexOf("a comment");
+  [where, where + 3, text.length - 1].forEach((i) => { withNuls[i] = 0; });
+  const job = await window.pgnsplit.addBytes("nuls.pgn", withNuls);
+  const st = window.pgnsplit.state().pop();
+  check("a pgn with stray NUL bytes is split, not refused",
+        st.state === "ready", st.state + " " + (st.error || ""));
+  check("…and it still finds the three games", st.games === 3, String(st.games));
+}
+
+/* ---- a real UTF-16 file is refused, with a way out ---------------------- */
+{
+  const utf16 = new Uint8Array(Buffer.from(sample, "utf16le"));
+  utf16.set([0xff, 0xfe], 0);
+  await window.pgnsplit.addBytes("utf16.pgn", utf16);
+  const st = window.pgnsplit.state().pop();
+  check("a UTF-16 file is refused", st.state === "error", st.state);
+  check("…and the message says how to convert it",
+        /iconv/.test(st.error || ""), st.error);
 }
 
 /* ---- what a download actually produces ---------------------------------- */

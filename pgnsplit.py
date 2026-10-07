@@ -264,6 +264,30 @@ def count_games_with_chess(data: bytes) -> tuple[int | None, str | None]:
     return count, None
 
 
+def encoding_problem(data: bytes) -> str | None:
+    """None when the file can be split, otherwise why it cannot.
+
+    The only thing worth refusing is UTF-16: every second byte is empty there,
+    so b'[Event "x"]' arrives as b'[E\\0v\\0e\\0n\\0t\\0' and no tag pair would ever
+    match.  A stray NUL byte in an otherwise normal PGN is nothing special --
+    several exports contain a few -- so only a byte order mark, or a dense run
+    of NULs on one parity, counts as UTF-16.
+    """
+    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return "it starts with a UTF-16 byte order mark"
+    sample = data[:8192]
+    if len(sample) < 64:
+        return None
+    even = sample[0::2].count(0)
+    odd = sample[1::2].count(0)
+    total = even + odd
+    if total == 0:
+        return None
+    if total / len(sample) > 0.2 and max(even, odd) / total > 0.9:
+        return "it looks like UTF-16 text, every second byte is empty"
+    return None
+
+
 class contextlib_redirect_stderr:
     def __init__(self, stream):
         self.stream = stream
@@ -372,11 +396,11 @@ def run(path_arg: str, args) -> int:
     if not data:
         print(f"{TOOL}: {source} is empty", file=sys.stderr)
         return 1
-    if data.startswith(b"\xff\xfe") or data.startswith(b"\xfe\xff"):
-        print(f"{TOOL}: {source}: UTF-16 PGNs are not supported", file=sys.stderr)
-        return 1
-    if b"\x00" in data:
-        print(f"{TOOL}: {source}: looks like UTF-16, aborting", file=sys.stderr)
+    problem = encoding_problem(data)
+    if problem:
+        print(f"{TOOL}: {source}: {problem}", file=sys.stderr)
+        print(f"  convert it first, for example: iconv -f UTF-16 -t UTF-8 {source} > utf8.pgn",
+              file=sys.stderr)
         return 1
 
     planned = plan_for(data, args.games, str(source), Path(args.outdir))

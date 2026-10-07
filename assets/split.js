@@ -421,6 +421,36 @@
     return names;
   }
 
+  /*
+   * Is this file text we can split?  Returns null when it is fine, otherwise a
+   * short reason.
+   *
+   * The only thing worth refusing is UTF-16: every second byte is empty there,
+   * so `[Event "x"]` arrives as `[E\0v\0e\0n\0t\0` and no tag pair would ever
+   * match.  A stray NUL byte in an otherwise normal PGN is nothing special --
+   * several exports contain a few -- so only a byte order mark, or a dense run
+   * of NULs on one parity, counts as UTF-16.
+   */
+  function encodingProblem(bytes) {
+    if (bytes.length >= 2 &&
+        ((bytes[0] === 0xff && bytes[1] === 0xfe) || (bytes[0] === 0xfe && bytes[1] === 0xff))) {
+      return "it starts with a UTF-16 byte order mark";
+    }
+    var n = Math.min(bytes.length, 8192);
+    if (n < 64) return null;
+    var even = 0, odd = 0;
+    for (var i = 0; i < n; i++) {
+      if (bytes[i] === 0) { if (i % 2) odd++; else even++; }
+    }
+    var total = even + odd;
+    if (total === 0) return null;
+    var dominant = even > odd ? even : odd;
+    if (total / n > 0.2 && dominant / total > 0.9) {
+      return "it looks like UTF-16 text, every second byte is empty";
+    }
+    return null;
+  }
+
   function humanSize(n) {
     if (n < 1024) return n + " B";
     var units = ["KB", "MB", "GB"], v = n / 1024, u = 0;
@@ -431,6 +461,7 @@
   global.PgnSplit = {
     plan: plan,
     splitCore: splitCore,
+    encodingProblem: encodingProblem,
     /* synchronous drain, for tests and tools; the UI uses plan() */
     scanCore: function (bytes) {
       var it = splitCore(bytes);
