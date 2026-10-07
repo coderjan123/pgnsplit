@@ -49,7 +49,11 @@ const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
 const EXPECTED = {
   "basic.pgn": { games: 3, problems: 0, notes: 0 },
   "tricky.pgn": { games: 3, problems: 0, notes: 0 },
-  "broken.pgn": { games: 3, problems: 2, notes: 0 }
+  "broken.pgn": { games: 3, problems: 2, notes: 0 },
+  /* CR-only line endings, two blank lines between games */
+  "mac.pgn": { games: 3, problems: 0, notes: 0 },
+  /* two blank lines, a game whose header is one [Event line after an unclosed brace */
+  "odd.pgn": { games: 3, problems: 1, notes: 1 }
 };
 
 console.log("splitting");
@@ -107,6 +111,33 @@ for (const [name, want] of Object.entries(EXPECTED)) {
   equal(`${name}: number of names`, names.length, chunks.length);
   check(`${name}: names are numbered from 001`,
         names[0] === "basic_001.pgn" || names[0].endsWith("_001.pgn"), names[0]);
+}
+
+/* the three cases the two implementations used to disagree on */
+{
+  const mac = samples["mac.pgn"];
+  check("mac.pgn: no CR LF anywhere", !Buffer.from(mac).includes(Buffer.from("\r\n")));
+  check("mac.pgn: still has CR", Buffer.from(mac).includes(13));
+  const plan = S.scanCore(mac);
+  const gaps = plan.games.slice(1).map((g, i) => g.start - plan.games[i].end);
+  check("mac.pgn: no gaps between games", gaps.every((d) => d === 0), gaps.join(","));
+  const starts = plan.games.map((g) =>
+    Buffer.from(mac.subarray(g.start, g.start + 7)).toString());
+  check("mac.pgn: every game starts with a tag pair",
+        starts.every((s2) => s2.startsWith("[Event ")), starts.join(" | "));
+}
+{
+  const odd = samples["odd.pgn"];
+  const plan = S.scanCore(odd);
+  const gaps = plan.games.slice(1).map((g, i) => g.start - plan.games[i].end);
+  check("odd.pgn: no gaps between games", gaps.every((d) => d === 0), gaps.join(","));
+  check("odd.pgn: the unclosed brace was repaired once",
+        plan.notes.filter((n) => n.kind === "resync").length === 1,
+        JSON.stringify(plan.notes.map((n) => n.kind)));
+  check("odd.pgn: the single [Event game survived",
+        plan.games.length === 3, String(plan.games.length));
+  check("odd.pgn: every game still has its tag pair",
+        plan.games.every((g) => g.hasTagLine), "one lost its headers");
 }
 
 /* the tricky sample must survive all of its nastiness */

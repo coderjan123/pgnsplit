@@ -1,0 +1,21 @@
+[Event "Odd A"]
+[Site "?"]
+[White "One"]
+[Black "Two"]
+[Result "*"]
+
+1. e4 e5 {unclosed comment
+
+
+[Event "Odd B"]
+[White "Three"]
+[Result "*"]
+
+1. d4 d5 *
+
+
+[Event "Odd C"]
+[White "Five"]
+[Result "1-0"]
+
+1. c4 e5 1-0

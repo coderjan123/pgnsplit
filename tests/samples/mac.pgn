@@ -1,0 +1,1 @@
+[Event "Mac A"][Site "?"][White "One"][Black "Two"][Result "1-0"]1. e4 e5 2. Nf3 Nc6 1-0[Event "Mac B"][Site "?"][White "Three"][Black "Four"][Result "0-1"]1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 0-1[Event "Mac C"][Site "?"][White "Five"][Black "Six"][Result "*"]{a comment} 1. b3 d5 *

@@ -203,7 +203,8 @@ def inspect_games(data: bytes, games: list[tuple[int, int]]) -> list[str]:
         if not chunk.strip():
             problems.append(f"game {i}: empty")
             continue
-        if not re.search(rb'^[ \t]*\[[ \t]*Result[ \t]+"', chunk, re.M):
+        if not any(re.match(rb'^[ \t]*\[[ \t]*Result[ \t]+"', line)
+                   for line in chunk.splitlines()):
             problems.append(f"game {i}: no [Result] tag")
         movetext = False
         depth = 0
