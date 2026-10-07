@@ -103,22 +103,26 @@ to. Every such repair is listed in the summary.
 ## Repository layout
 
 ```
-index.html            the web app
-assets/split.js       the splitter, browser side
-assets/zip.js         zip writer, browser side (CompressionStream, no library)
-assets/app.js         the web app
+index.html              the web app
+.nojekyll               github pages: serve the files as they are, no jekyll
+assets/split.js         the splitter, browser side
+assets/zip.js           zip writer, browser side (CompressionStream, no library)
+assets/app.js           the web app
 assets/style.css
-pgnsplit.py           the command line tool
-tests/run-tests.mjs   node test runner, no dependencies
-tests/run-ui-tests.mjs the real page driven through jsdom (optional)
-tests/samples/        small PGNs with the awkward cases in them
-tools/parity.mjs      checks that both implementations cut identical ranges
+pgnsplit.py             the command line tool
+tests/run-tests.mjs     node test runner, no dependencies
+tests/run-ui-tests.mjs  the real page driven through jsdom (optional)
+tests/samples/          small PGNs with the awkward cases in them
+tools/parity.mjs        js vs python, byte range by byte range
 ```
+
+No build step, no dependencies, nothing to install: the page is opened directly
+or served by github pages from the repo root.
 
 ## Development
 
 ```sh
-npm test                                        # 97 checks + js/python parity on the samples
+npm test                                        # 101 checks + js/python parity on the samples
 npm run test:ui                                 # the real page in jsdom (needs npm install)
 node tools/parity.mjs "~/CHESS/some course"     # any number of files or folders
 find ~/pgns -name '*.pgn' > list.txt
@@ -135,16 +139,30 @@ tokens inside comments and header blocks without moves.
 
 ## Publishing on GitHub
 
-The page is a plain static site, so GitHub Pages can serve it:
+There are no workflows in this repository. GitHub Pages serves the branch
+directly:
+
+**Settings → Pages → Build and deployment → Source: _Deploy from a branch_ →
+Branch: `main`, Folder: `/ (root)` → Save.**
+
+The page is then at <https://coderjan123.github.io/pgnsplit/>. There is nothing
+to build: `index.html` and `assets/` sit in the root of the repository, and
+`.nojekyll` tells GitHub to serve the files as they are instead of running them
+through Jekyll.
+
+Afterwards the usual loop is enough:
 
 ```sh
-git remote add origin git@github.com:<you>/pgnsplit.git
-git push -u origin main
+git add -A && git commit -m "..." && git push
 ```
 
-then enable **Settings → Pages → Source: GitHub Actions**. The included workflow
-publishes `index.html` and `assets/`. Until then, the app also works from a
-clone without any server: `xdg-open index.html`.
+Every push updates the site within a minute or two. Locally you do not need
+GitHub at all:
+
+```sh
+xdg-open index.html            # works straight from disk
+python3 -m http.server 8000    # or on localhost:8000
+```
 
 ## Licence
 
