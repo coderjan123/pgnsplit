@@ -1,0 +1,21 @@
+# pgn chunks produced next to the tool, not part of the repository
+/*.pgn
+!/tests/samples/*.pgn
+
+# node
+node_modules/
+package-lock.json
+
+# tooling leftovers
+tools/.parity_helper.py
+tools/.parity_list.json
+tests/.tmp/
+
+# editors and systems
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/
+__pycache__/
+*.pyc

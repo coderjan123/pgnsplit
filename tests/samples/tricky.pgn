@@ -1,0 +1,35 @@
+﻿[Event "?"]
+[Site "?"]
+[Date "2021.03.16"]
+[Round "?"]
+[White "INTRODUCTION"]
+[Black "?"]
+[Result "*"]
+[Annotator "GM Ioannis Papaioannou"]
+[PlyCount "6"]
+[EventDate "2021.03.16"]
+
+{[%%evp 0,6,16,16,49,-34,2,-12,1] Intro;} 1. e4 e5 2. f4
+(2. d4 {usually a surprise} exd4 3. Qxd4 Nc6 (4. Qe3) (4. Qc4)) 2... exf4 *
+
+[Event "?"]
+[Site "?"]
+[Date "2021.03.17"]
+[Round "?"]
+[White "MAIN LINE"]
+[Black "?"]
+[Result "*"]
+
+{ Nikolas1408 @@StartBracket@@2623@@EndBracket@@ -gm 0-1 chess24.com 2015 }
+1. Nf3 ({If} 1... d5 {then} 2. c4 (2. e3) 2... e6) 1... Nf6 *
+
+[Event "?"]
+[Site "?"]
+[Date "2021.03.18"]
+[Round "?"]
+[White "ESCAPES"]
+[Black "?"]
+[Result "1-0"]
+
+% this line is an escape and carries no moves 12:00:00
+1. d4 d5 2. c4 {the Queen gambit} e6 3. Nc3 Nf6 1-0

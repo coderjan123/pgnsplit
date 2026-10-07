@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pgnsplit &ndash; split a PGN into lichess-sized studies</title>
+<meta name="description" content="Split a PGN file into chunks of 64 games for lichess studies. Runs entirely in your browser, nothing is uploaded.">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#9819;</text></svg>">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1><span class="knight">&#9819;</span> pgnsplit</h1>
+    <p class="tagline">Split a PGN into chunks of 64 games, one study each. Nothing leaves your browser.</p>
+    <p class="offline" id="offline-note">
+      <strong>100&nbsp;% local.</strong> No server, no upload, no network requests &ndash; the files are read and
+      written inside this tab, then handed to you as a ZIP. Works offline and straight from <code>file://</code>.
+    </p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card drop" id="drop" tabindex="0" role="button"
+           aria-label="Drop PGN files here or press Enter to choose them">
+    <input type="file" id="file-input" accept=".pgn,.txt,application/x-chess-pgn" multiple hidden>
+    <p class="big">Drop one or more <strong>.pgn</strong> files here</p>
+    <p class="small">or <button type="button" class="link" id="pick">choose files</button></p>
+    <p class="small dim">everything stays on this machine</p>
+  </section>
+
+  <section class="card controls">
+    <label class="field">
+      <span>Games per file</span>
+      <input type="number" id="games" value="64" min="1" max="100000" step="1" inputmode="numeric">
+      <span class="hint">64 is the chapter limit of one lichess study</span>
+    </label>
+    <div class="actions">
+      <button type="button" id="download-all" class="primary" disabled>Download all as ZIP</button>
+      <button type="button" id="clear" disabled>Remove all</button>
+      <span class="spacer"></span>
+      <label class="check" title="Writes the files straight into a folder you pick, instead of a ZIP. Chromium browsers only.">
+        <input type="checkbox" id="use-folder"> Save into a folder
+      </label>
+    </div>
+  </section>
+
+  <div id="progress" class="progress" hidden>
+    <div class="bar"><div class="fill" id="progress-fill"></div></div>
+    <span id="progress-text"></span>
+  </div>
+
+  <div id="report"></div>
+
+  <section class="card notes">
+    <h2>What this does</h2>
+    <ul>
+      <li>Every output file is a copy of a byte range of the input: comments, variations, NAGs,
+          <code>[%cal]</code>/<code>[%csl]</code>/<code>[%evp]</code> annotations, the BOM and the line endings
+          stay exactly as they were. Tag pairs are never modified.</li>
+      <li>Games are found by a small lexer that understands <code>{ }</code> comments, <code>( )</code> variations,
+          <code>;</code> comments and <code>%</code> escape lines, so multi-line lecture PGNs split correctly.</li>
+      <li>Files with unbalanced brackets in the source are repaired at the next <code>[Event</code> line, and every
+          repair is listed below.</li>
+      <li>Afterwards the SHA-256 of all chunks is compared with the SHA-256 of the input, so you can be sure
+          nothing was lost.</li>
+    </ul>
+    <p class="small dim">Chess is not the only thing that ends a PGN game at 64 &ndash; this is simply the
+      lichess study chapter limit. Import each file into its own study.</p>
+  </section>
+</main>
+
+<footer class="wrap small dim">
+  <p>MIT licensed. Same algorithm as the <code>pgnsplit.py</code> command line tool in this repository.</p>
+</footer>
+
+<script src="assets/split.js"></script>
+<script src="assets/zip.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>

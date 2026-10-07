@@ -1,0 +1,21 @@
+[Event "No result tag"]
+[Site "?"]
+[White "One"]
+[Black "Two"]
+
+1. e4 c5 2. Nf3 d6
+
+[Event "Headers only"]
+[Site "?"]
+[White "Three"]
+[Black "Four"]
+[Result "*"]
+
+
+[Event "Last"]
+[Site "?"]
+[White "Five"]
+[Black "Six"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. e3 O-O 5. Bd3 d5 0-1

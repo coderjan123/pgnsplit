@@ -1,0 +1,16 @@
+{
+  "name": "pgnsplit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Split a PGN into chunks of 64 games for lichess studies. Web app and CLI, no dependencies.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node tests/run-tests.mjs && node tools/parity.mjs tests/samples",
+    "test:ui": "node tests/run-ui-tests.mjs",
+    "parity": "node tools/parity.mjs",
+    "serve": "python3 -m http.server 8000"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0"
+  }
+}
